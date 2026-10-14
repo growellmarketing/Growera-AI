@@ -63,27 +63,45 @@ export default function ReviewsInboxPage() {
     loadReviews();
   }, [workspaceId]);
 
-  const handleOpenDraftModal = (review: Review) => {
+  const handleOpenDraftModal = async (
+    review: Review,
+    toneOverride?: "professional" | "empathetic" | "friendly" | "concise"
+  ) => {
+    const toneToUse = toneOverride || draftTone;
     setActiveReviewDrafting(review.id);
     setIsGenerating(true);
 
-    // AI Draft generation simulation (In Phase 5, calls server-side OpenAI service)
-    setTimeout(() => {
-      let suggested = "";
-      if (review.star_rating >= 4) {
-        if (draftTone === "friendly") {
-          suggested = `Hey ${review.reviewer_name}! 😊 Thanks so much for the glowing 5-star review! We're thrilled you loved our Ethiopian pour-over and hospitality. Can't wait to welcome you back soon!`;
-        } else if (draftTone === "concise") {
-          suggested = `Thank you ${review.reviewer_name}! We appreciate your support and look forward to your next visit.`;
-        } else {
-          suggested = `Dear ${review.reviewer_name}, thank you for taking the time to share your feedback. We are delighted that you enjoyed the coffee and service at our Indiranagar location. We look forward to serving you again soon.`;
-        }
+    try {
+      const res = await fetch("/api/ai/draft-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName: "Growera Business",
+          reviewerName: review.reviewer_name,
+          starRating: review.star_rating,
+          reviewComment: review.comment,
+          tone: toneToUse,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.reply) {
+        setDraftText(data.reply);
       } else {
-        suggested = `Dear ${review.reviewer_name}, we sincerely apologize for the delay you experienced and the service lapse during your visit. This does not reflect the standard we strive to provide. We would welcome the chance to address this directly—please reach out to us at care@urbancafe.com.`;
+        setDraftText(
+          review.star_rating >= 4
+            ? `Thank you ${review.reviewer_name} for the great review! We appreciate your support.`
+            : `Dear ${review.reviewer_name}, we apologize for your experience. Please reach out to us directly so we can make things right.`
+        );
       }
-      setDraftText(suggested);
+    } catch (err) {
+      console.error("Draft generation failed:", err);
+      setDraftText(
+        `Thank you ${review.reviewer_name} for sharing your feedback with us.`
+      );
+    } finally {
       setIsGenerating(false);
-    }, 600);
+    }
   };
 
   const handlePublishReply = (reviewId: string) => {
@@ -258,7 +276,7 @@ export default function ReviewsInboxPage() {
                           key={t}
                           onClick={() => {
                             setDraftTone(t);
-                            handleOpenDraftModal(rev);
+                            handleOpenDraftModal(rev, t);
                           }}
                           className={`text-[10px] capitalize px-2 py-0.5 rounded font-medium transition-colors ${
                             draftTone === t
