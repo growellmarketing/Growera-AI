@@ -1,18 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { Sparkles, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Sparkles, ArrowRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error) {
+      if (error === "auth_callback_failed" || error === "auth_callback_missing_code") {
+        setErrorMessage("Google Sign In verification failed. Please check Supabase Authentication Redirect URL configuration.");
+      } else {
+        setErrorMessage(decodeURIComponent(error));
+      }
+    }
+  }, [searchParams]);
 
   // 1-Click Sign in with Google using Supabase Auth
   const handleGoogleSignIn = async () => {
@@ -84,7 +97,7 @@ export default function LoginPage() {
               <Sparkles className="w-5 h-5" />
             </div>
             <span className="text-xl font-bold text-slate-900 tracking-tight">
-              LocalPilot<span className="text-indigo-600">.ai</span>
+              Growera<span className="text-indigo-600">.ai</span>
             </span>
           </Link>
         </div>
@@ -183,5 +196,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
